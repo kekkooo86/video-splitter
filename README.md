@@ -78,7 +78,7 @@ Options:
 ### With title
 
 ``` bash
-./split_video.sh -i documentary.mp4 -T "Southern Documentary|1992"
+./split_video.sh -i documentary.mp4 -T "Southern|Documentary"
 ```
 
 ### Process specific time range
