@@ -1,0 +1,59 @@
+# Environment
+venv/
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation (internal development docs)
+docs/
+
+# Docker generated files
+split_video_docker.sh
+create_docker_script_fixed.sh
+
+# Secrets and config
+*.txt
+config.json
+
+# Video files (too large)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.MP4
+*.AVI
+*.MOV
+*.MKV
+
+# Output directories
+output/
+completed/
+pending/
+test_videos/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+.AppleDouble
+
+# Logs
+*.log
+
+# Temporary
+*.tmp
+*.bak
+*.backup
+*~
+README_OLD.md
+.gitignore_template
+scripts/publish-docker.sh

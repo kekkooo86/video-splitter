@@ -1,0 +1,217 @@
+# 🎬 Video Splitter
+
+> Split long videos into segments with professional labels and automatic titles.
+> Perfect for social media, video series, or any content that needs to be divided into shorter clips.
+
+[![Docker
+Hub](https://img.shields.io/docker/v/kekkooo86/video-splitter?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/kekkooo86/video-splitter)
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+------------------------------------------------------------------------
+
+## 🚀 Quick Start
+
+### With Docker (Recommended)
+
+``` bash
+# Pull image
+docker pull kekkooo86/video-splitter:latest
+
+# Use
+docker run -v $(pwd):/videos kekkooo86/video-splitter -i video.mp4 -T "Documentary|Southern Italy"
+```
+
+### Locally
+
+``` bash
+# Clone
+git clone https://github.com/kekkooo86/video-splitter.git
+cd video-splitter
+
+# Use
+chmod +x split_video.sh
+./split_video.sh -i video.mp4 -T "Title"
+```
+
+------------------------------------------------------------------------
+
+## ✨ Features
+
+-   ✂️ Split videos into segments (default 60s)
+-   🏷️ Automatic "Part X" labels
+-   🎨 Centered intro titles with fade effect
+-   📱 Auto-detect aspect ratio (9:16, 16:9, 1:1)
+-   ⚡ Parallel processing (up to 3 videos)
+-   🧪 Test mode
+
+------------------------------------------------------------------------
+
+## 📋 Parameters
+
+``` bash
+./split_video.sh -i VIDEO [options]
+
+Options:
+  -i FILE       Video to process (required)
+  -s SECONDS    Segment duration (default: 60)
+  -o SECONDS    Overlap (default: 5)
+  -T "TEXT"     Intro title (use | for line break)
+  -l on/off     "Part X" label (default: on)
+  -p 1-3        Parallelism (default: 1)
+  --test-first  Test only the first segment
+```
+
+------------------------------------------------------------------------
+
+## 🎯 Examples
+
+### Basic
+
+``` bash
+./split_video.sh -i documentary.mp4
+```
+
+### With title
+
+``` bash
+./split_video.sh -i documentary.mp4 -T "Southern Documentary|1992"
+```
+
+### Parallel processing
+
+``` bash
+./split_video.sh -i video.mp4 -T "Series" -p 2
+```
+
+### Test first segment
+
+``` bash
+./split_video.sh -i video.mp4 -T "Test" --test-first
+```
+
+------------------------------------------------------------------------
+
+## 🐳 Docker
+
+### Local build
+
+``` bash
+docker build -t video-splitter .
+```
+
+### Use with your videos
+
+``` bash
+docker run -v /path/to/videos:/videos kekkooo86/video-splitter -i video.mp4
+```
+
+------------------------------------------------------------------------
+
+
+## 🔧 Requirements
+
+-   **Docker** (recommended) or:
+-   **FFmpeg 4.4+**
+-   **Bash 4+**
+-   **bc** (basic calculator)
+
+------------------------------------------------------------------------
+
+## 📝 Installation
+
+### macOS
+
+``` bash
+brew install ffmpeg
+```
+
+### Linux (Ubuntu/Debian)
+
+``` bash
+sudo apt-get install ffmpeg bc
+```
+
+### Usage
+
+``` bash
+chmod +x split_video.sh
+./split_video.sh -i video.mp4
+```
+
+------------------------------------------------------------------------
+
+## ❓ FAQ
+
+### Does the title appear in all video segments?
+
+Yes! The title appears in **every segment** for the first N seconds (overlap duration, default 5s). This is because each segment starts with a fresh timeline at t=0.
+
+### How does the overlap work?
+
+Each segment overlaps with the previous one. For example:
+- Segment 1: 0s → 60s
+- Segment 2: 55s → 115s (5s overlap)
+- Segment 3: 110s → 170s (5s overlap)
+
+The title appears in the overlap section (first 5s) of each segment, providing continuity.
+
+### Can I test only the first segment?
+
+Yes! Use the `--test-first` flag:
+
+```bash
+./split_video.sh -i video.mp4 -T "Title" --test-first
+```
+
+This generates only the first segment, letting you verify settings before processing the entire video.
+
+### Why use `-ss` before `-i`?
+
+FFmpeg positioning matters! Using `-ss` before `-i` (input seeking) resets the timeline to t=0 for each segment, ensuring filters work correctly. This is faster and more reliable than output seeking.
+
+------------------------------------------------------------------------
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE)
+
+------------------------------------------------------------------------
+
+## 👤 Author
+
+**Kekkooo86** - Docker Hub:
+[@kekkooo86](https://hub.docker.com/r/kekkooo86) - GitHub:
+[@kekkooo86](https://github.com/kekkooo86)
+
+------------------------------------------------------------------------
+
+## 📁 Project Structure
+
+```
+video-splitter/
+├── split_video.sh           # Main script (local use)
+├── split_video_docker.sh    # Docker wrapper
+├── split_video_core.sh      # Core functions (shared)
+├── Dockerfile               # Docker image definition
+├── docker-compose.yml       # Docker Compose config
+├── LICENSE                  # MIT License
+├── README.md               # This file
+├── CONTRIBUTING.md         # Contribution guidelines
+└── scripts/                # Utility scripts
+    └── publish-docker.sh   # Publish to Docker Hub
+```
+
+------------------------------------------------------------------------
+
+## 🔧 Requirements
+
+-   [jrottenberg/ffmpeg](https://hub.docker.com/r/jrottenberg/ffmpeg) -
+    Base Docker image
+-   [Liberation
+    Fonts](https://github.com/liberationfonts/liberation-fonts) - Font
+    rendering
+
+------------------------------------------------------------------------
+
+**Created with ❤️ for content creators**

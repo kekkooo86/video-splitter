@@ -1,0 +1,31 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Shell scripts should use LF
+*.sh text eol=lf
+
+# Python files should use LF
+*.py text eol=lf
+
+# Markdown and documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Docker files
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+.dockerignore text eol=lf
+
+# Git files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Binary files
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.mkv binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+

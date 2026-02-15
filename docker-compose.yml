@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  video-splitter:
+    build: .
+    image: video-splitter:latest
+    container_name: video-splitter
+    volumes:
+      # Directory con i video da processare
+      - ./videos:/videos
+      # Oppure usa una directory specifica:
+      # - /path/to/your/videos:/videos
+    # Limiti memoria per video processing
+    mem_limit: 2g
+    mem_reservation: 512m
+    environment:
+      - FONTCONFIG_FILE=/etc/fonts/fonts.conf
+      - FONTCONFIG_PATH=/etc/fonts
+
+  # Service per test rapido
+  help:
+    build: .
+    volumes:
+      - ./videos:/videos
+    command: ["-h"]
+
+  # Service per test primo video
+  test:
+    build: .
+    volumes:
+      - ./videos:/videos
+    # Esempio: testa primo video con titolo
+    command: ["-i", "test.mp4", "-T", "Test Video", "--test-first"]
+

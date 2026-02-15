@@ -1,0 +1,68 @@
+# .dockerignore - Video Splitter
+
+# Version Control
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python (optional features - not needed in core)
+*.py
+requirements.txt
+venv/
+__pycache__/
+*.pyc
+*.py[cod]
+
+# Temporary
+*.tmp
+*.log
+*.bak
+*.backup
+.DS_Store
+Thumbs.db
+
+# Videos (too large)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.MP4
+*.AVI
+*.MOV
+*.MKV
+
+# Output directories
+output/
+completed/
+pending/
+test_videos/
+
+# Documentation (internal)
+docs/
+*.md
+!README.md
+
+# Scripts (not needed in container)
+scripts/
+docker-compose.yml
+
+# Docker build artifacts
+docker-entrypoint.sh
+create_docker_version.sh
+
+# Script di esempi (non serve nel container)
+esempi_*.sh
+activate.sh
+setup_venv.sh
+test_*.sh
+
+# Backup files
+*.bak
+*.backup
+*~
+
