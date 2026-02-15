@@ -9,11 +9,7 @@ venv/
 *.swp
 *.swo
 
-# Documentation (internal development docs)
-docs/
-
 # Docker generated files
-split_video_docker.sh
 create_docker_script_fixed.sh
 
 # Secrets and config

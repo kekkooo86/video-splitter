@@ -5,7 +5,7 @@ FROM jrottenberg/ffmpeg:4.4-alpine
 
 # Metadata labels
 LABEL maintainer="xtxmotard@gmail.com"
-LABEL version="1.1.0"
+LABEL version="1.2.0"
 LABEL description="Video Splitter - Professional video segmentation with FFmpeg"
 LABEL org.opencontainers.image.source="https://github.com/kekkooo86/video-splitter"
 LABEL org.opencontainers.image.documentation="https://hub.docker.com/r/kekkooo86/video-splitter"
@@ -25,9 +25,9 @@ RUN apk add --no-cache \
 # Create working directory
 WORKDIR /app
 
-# Copy scripts (core + Docker wrapper)
+# Copy scripts (usa lo stesso script per locale e Docker!)
 COPY split_video_core.sh /app/split_video_core.sh
-COPY split_video_docker.sh /app/split_video.sh
+COPY split_video.sh /app/split_video.sh
 COPY README.md /app/
 
 # Make scripts executable
@@ -40,6 +40,7 @@ RUN mkdir -p /etc/fonts && \
 # Environment variables to disable fontconfig warnings completely
 ENV FONTCONFIG_FILE=/etc/fonts/fonts.conf
 ENV FONTCONFIG_PATH=/etc/fonts
+ENV DOCKER_CONTAINER=1
 
 # Volume for videos
 VOLUME ["/videos"]

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Video Splitter - Local Version
-# Wrapper that loads core functions and uses Docker for ffmpeg
+# Video Splitter - Universal Version
+# Works both locally (using Docker for ffmpeg) and inside Docker container
 
 set -e
 
@@ -9,21 +9,40 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/split_video_core.sh"
 
-# Configuration specific to local use (with Docker)
-VIDEO_DIR="."
-FFMPEG_CMD_TEMPLATE="docker run --rm -v VIDEO_DIR_PLACEHOLDER:/videos jrottenberg/ffmpeg"
+# Auto-detect environment: Docker container or local
+if [ -f "/.dockerenv" ] || [ -n "$DOCKER_CONTAINER" ]; then
+  # Running inside Docker container
+  RUNNING_IN_DOCKER=true
+  VIDEO_DIR="/videos"
+  FFMPEG_CMD="ffmpeg"
+else
+  # Running locally, use Docker for ffmpeg
+  RUNNING_IN_DOCKER=false
+  VIDEO_DIR="."
+  FFMPEG_CMD="docker run --rm -v VIDEO_DIR_PLACEHOLDER:/videos jrottenberg/ffmpeg"
+fi
 
 # Helper to build ffmpeg command with correct paths
 build_ffmpeg_cmd() {
-  echo "$FFMPEG_CMD_TEMPLATE" | sed "s|VIDEO_DIR_PLACEHOLDER|$VIDEO_DIR|g"
+  if [ "$RUNNING_IN_DOCKER" = true ]; then
+    echo "ffmpeg"
+  else
+    echo "$FFMPEG_CMD" | sed "s|VIDEO_DIR_PLACEHOLDER|$(cd "$VIDEO_DIR" && pwd)|g"
+  fi
 }
 
 # Wrapper to call ffmpeg with correct paths
 run_ffmpeg() {
-  local video_dir_abs=$(cd "$VIDEO_DIR" && pwd)
-  docker run --rm -v "$video_dir_abs:/videos" \
-    -e FONTCONFIG_FILE=/dev/null \
-    jrottenberg/ffmpeg "$@"
+  if [ "$RUNNING_IN_DOCKER" = true ]; then
+    # Inside Docker: use ffmpeg directly
+    ffmpeg "$@"
+  else
+    # Local: use Docker to run ffmpeg
+    local video_dir_abs=$(cd "$VIDEO_DIR" && pwd)
+    docker run --rm -v "$video_dir_abs:/videos" \
+      -e FONTCONFIG_FILE=/dev/null \
+      jrottenberg/ffmpeg "$@"
+  fi
 }
 
 # Default values
@@ -35,6 +54,8 @@ ADD_LABEL="on"
 TITLE_TEXT=""
 MAX_PARALLEL=1
 TEST_FIRST=false
+START_TIME=0
+END_TIME=-1  # -1 significa "fino alla fine"
 
 # If no arguments, use interactive mode
 if [ $# -eq 0 ]; then
@@ -42,7 +63,7 @@ if [ $# -eq 0 ]; then
 fi
 
 # Parse arguments
-while getopts "i:d:s:o:l:T:p:h-:" opt; do
+while getopts "i:d:s:o:l:T:p:S:E:h-:" opt; do
   case $opt in
     i) INPUT_FILE="$OPTARG" ;;
     d) VIDEO_DIR="$OPTARG" ;;
@@ -51,6 +72,8 @@ while getopts "i:d:s:o:l:T:p:h-:" opt; do
     l) ADD_LABEL="$OPTARG" ;;
     T) TITLE_TEXT="$OPTARG" ;;
     p) MAX_PARALLEL="$OPTARG" ;;
+    S) START_TIME="$OPTARG" ;;
+    E) END_TIME="$OPTARG" ;;
     h)
       echo "Usage: $0 [options]"
       echo ""
@@ -62,14 +85,17 @@ while getopts "i:d:s:o:l:T:p:h-:" opt; do
       echo "  -s  Duration of each segment in seconds (default: 60)"
       echo "  -o  Overlap between segments in seconds (default: 5)"
       echo "  -l  Add permanent 'Part X' label (on/off, default: on)"
-      echo "  -T  Intro title (use | for line break)"
+      echo "  -T  Intro title (use \| for line break)"
       echo "  -p  Number of parallel processes (default: 1, max: 3)"
+      echo "  -S  Start time in seconds (default: 0)"
+      echo "  -E  End time in seconds (default: video duration)"
       echo "  --test-first  Test only the first video"
       echo "  -h  Show this help"
       echo ""
       echo "Examples:"
       echo "  $0 -i documentary.mp4 -s 60 -o 5 -T \"Documentary South 1992\""
       echo "  $0 -i video.mp4 -T \"Series PIPE Episode 1\" -p 2"
+      echo "  $0 -i video.mp4 -S 30 -E 180  # Process only from 30s to 180s"
       exit 0
       ;;
     -)
@@ -194,6 +220,8 @@ echo -e "${GREEN}📁 Input directory:${NC} $VIDEO_DIR"
 echo -e "${GREEN}📂 Output folder:${NC} $FILENAME/"
 echo -e "${GREEN}⏱️  Segment duration:${NC} $SEGMENT_DURATION seconds"
 echo -e "${GREEN}🔄 Overlap:${NC} $OVERLAP seconds"
+[ $START_TIME -gt 0 ] && echo -e "${GREEN}▶️  Start time:${NC} $START_TIME seconds"
+[ $END_TIME -ne -1 ] && [ $END_TIME -lt 999999 ] && echo -e "${GREEN}⏹️  End time:${NC} $END_TIME seconds"
 [ "$ADD_LABEL" = "on" ] && echo -e "${GREEN}🏷️  Permanent label:${NC} Enabled"
 [ -n "$TITLE_TEXT" ] && echo -e "${GREEN}📝 Intro title:${NC} $TITLE_TEXT"
 [ "$TEST_FIRST" = true ] && echo -e "${YELLOW}🧪 TEST: First video only${NC}"
@@ -224,6 +252,63 @@ DURATION=$(get_video_duration "/videos/$(basename "$INPUT_FILE")" "run_ffmpeg")
 if [ -z "$DURATION" ]; then
   echo -e "${RED}Error: unable to get video duration${NC}"
   exit 1
+fi
+
+# Set END_TIME to video duration if not specified
+[ $END_TIME -eq -1 ] && END_TIME=$DURATION
+
+# Validate START_TIME and END_TIME
+if [ $START_TIME -lt 0 ]; then
+  echo -e "${RED}Error: Start time cannot be negative${NC}"
+  exit 1
+fi
+
+if [ $END_TIME -gt $DURATION ]; then
+  echo -e "${YELLOW}⚠️  Warning: End time ($END_TIME s) exceeds video duration ($DURATION s)${NC}"
+  echo -e "${YELLOW}   Using video duration instead${NC}"
+  END_TIME=$DURATION
+fi
+
+if [ $START_TIME -ge $END_TIME ]; then
+  echo -e "${RED}Error: Start time ($START_TIME s) must be less than end time ($END_TIME s)${NC}"
+  exit 1
+fi
+
+# Pre-processing: trim video if START_TIME or END_TIME are specified
+CLEANUP_TEMP=false
+ORIGINAL_INPUT_FILE="$INPUT_FILE"
+ORIGINAL_VIDEO_PATH="$VIDEO_PATH"
+
+if [ $START_TIME -gt 0 ] || [ $END_TIME -lt $DURATION ]; then
+  echo -e "${YELLOW}🔧 Pre-processing: trimming video from ${START_TIME}s to ${END_TIME}s...${NC}"
+
+  TEMP_VIDEO="${FILENAME}_temp_trimmed.${EXTENSION}"
+  TEMP_VIDEO_PATH="$VIDEO_DIR/$TEMP_VIDEO"
+
+  # Use stream copy for fast trimming (no re-encoding)
+  START_TIME_FMT=$(format_time $START_TIME)
+  TRIM_DURATION=$((END_TIME - START_TIME))
+
+  run_ffmpeg \
+    -ss "$START_TIME_FMT" \
+    -i "/videos/$(basename "$INPUT_FILE")" \
+    -t "$TRIM_DURATION" \
+    -c copy \
+    "/videos/$TEMP_VIDEO" \
+    -loglevel error -stats -y 2>&1 | grep -v "frame=" || true
+
+  if [ $? -eq 0 ] && [ -f "$TEMP_VIDEO_PATH" ]; then
+    echo -e "${GREEN}✓ Trimmed video created (stream copy, no re-encoding)${NC}"
+    INPUT_FILE="$TEMP_VIDEO"
+    VIDEO_PATH="$TEMP_VIDEO_PATH"
+    CLEANUP_TEMP=true
+    # Update duration to trimmed video duration
+    DURATION=$TRIM_DURATION
+  else
+    echo -e "${RED}Error: Failed to create trimmed video${NC}"
+    exit 1
+  fi
+  echo ""
 fi
 
 ESTIMATED_PARTS=$(((DURATION - OVERLAP) / (SEGMENT_DURATION - OVERLAP) + 1))
@@ -322,4 +407,12 @@ for file in "${CREATED_FILES[@]}"; do
   fi
 done
 echo ""
+
+# Cleanup temporary trimmed video
+if [ "$CLEANUP_TEMP" = true ] && [ -f "$VIDEO_PATH" ]; then
+  echo -e "${BLUE}🧹 Cleaning up temporary files...${NC}"
+  rm -f "$VIDEO_PATH"
+  echo -e "${GREEN}✓ Temporary trimmed video removed${NC}"
+  echo ""
+fi
 

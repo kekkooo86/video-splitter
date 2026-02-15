@@ -42,6 +42,7 @@ chmod +x split_video.sh
 -   🏷️ Automatic "Part X" labels
 -   🎨 Centered intro titles with fade effect
 -   📱 Auto-detect aspect ratio (9:16, 16:9, 1:1)
+-   ⏱️ Process specific time ranges (start/end)
 -   ⚡ Parallel processing (up to 3 videos)
 -   🧪 Test mode
 
@@ -56,6 +57,8 @@ Options:
   -i FILE       Video to process (required)
   -s SECONDS    Segment duration (default: 60)
   -o SECONDS    Overlap (default: 5)
+  -S SECONDS    Start time (default: 0)
+  -E SECONDS    End time (default: video duration)
   -T "TEXT"     Intro title (use | for line break)
   -l on/off     "Part X" label (default: on)
   -p 1-3        Parallelism (default: 1)
@@ -76,6 +79,16 @@ Options:
 
 ``` bash
 ./split_video.sh -i documentary.mp4 -T "Southern Documentary|1992"
+```
+
+### Process specific time range
+
+``` bash
+# Process only from 30 seconds to 3 minutes
+./split_video.sh -i video.mp4 -S 30 -E 180
+
+# Process from 1 minute to end
+./split_video.sh -i video.mp4 -S 60
 ```
 
 ### Parallel processing
