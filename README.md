@@ -19,7 +19,7 @@ MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 docker pull kekkooo86/video-splitter:latest
 
 # Use
-docker run -v $(pwd):/videos kekkooo86/video-splitter -i video.mp4 -T "Documentary|Southern Italy"
+docker run -v $(pwd):/videos kekkooo86/video-splitter -i video.mp4 -T "Documentary|Italy"
 ```
 
 ### Locally
@@ -55,12 +55,13 @@ chmod +x split_video.sh
 
 Options:
   -i FILE       Video to process (required)
-  -s SECONDS    Segment duration (default: 60)
-  -o SECONDS    Overlap (default: 5)
-  -S SECONDS    Start time (default: 0)
-  -E SECONDS    End time (default: video duration)
+  -s SECONDS    Segment duration (default: 60, accepts float)
+  -o SECONDS    Overlap (default: 5, accepts float)
+  -S SECONDS    Start time (default: 0, accepts float)
+  -E SECONDS    End time (default: video duration, accepts float)
   -T "TEXT"     Intro title (use | for line break)
   -l on/off     "Part X" label (default: on)
+  -L "TEXT"     Custom label text (replaces "Part X")
   -p 1-3        Parallelism (default: 1)
   --test-first  Test only the first segment
 ```
@@ -79,6 +80,22 @@ Options:
 
 ``` bash
 ./split_video.sh -i documentary.mp4 -T "Southern|Documentary"
+```
+
+### Custom label instead of "Part X"
+
+``` bash
+./split_video.sh -i video.mp4 -L "Episodio 1" -T "Serie TV"
+```
+
+### Precise timing with float values
+
+``` bash
+# Split at 59.5 seconds with 2.5 seconds overlap
+./split_video.sh -i video.mp4 -s 59.5 -o 2.5
+
+# Process from 30.25s to 3 minutes and 15.75 seconds
+./split_video.sh -i video.mp4 -S 30.25 -E 195.75
 ```
 
 ### Process specific time range
@@ -107,16 +124,72 @@ Options:
 
 ## 🐳 Docker
 
+### Pull from Docker Hub
+
+``` bash
+docker pull kekkooo86/video-splitter:latest
+```
+
 ### Local build
 
 ``` bash
-docker build -t video-splitter .
+docker build -t video-splitter:1.3.0 .
 ```
 
 ### Use with your videos
 
+**Basic usage:**
 ``` bash
-docker run -v /path/to/videos:/videos kekkooo86/video-splitter -i video.mp4
+# Mount your video directory to /videos in the container
+docker run --rm \
+  -v /path/to/your/videos:/videos \
+  kekkooo86/video-splitter \
+  -i your-video.mp4
+```
+
+**With custom label and title:**
+``` bash
+docker run --rm \
+  -v /Users/kekko/Downloads:/videos \
+  kekkooo86/video-splitter \
+  -i video.mp4 \
+  -L "Episodio 1" \
+  -T "Serie TV"
+```
+
+**With float timing:**
+``` bash
+docker run --rm \
+  -v $(pwd):/videos \
+  kekkooo86/video-splitter \
+  -i video.mp4 \
+  -s 59.5 \
+  -o 2.5 \
+  -L "Part Custom"
+```
+
+### 📂 Output Location
+
+The output folder is created **next to your original video file** in the mounted directory:
+
+```
+/path/to/your/videos/
+├── your-video.mp4                    # Original file
+└── your-video/                       # Output folder (created automatically)
+    ├── your-video_parte_01.mp4
+    ├── your-video_parte_02.mp4
+    └── your-video_parte_03.mp4
+```
+
+**Example:**
+```bash
+# If your video is in /Users/kekko/Downloads/
+docker run --rm -v /Users/kekko/Downloads:/videos kekkooo86/video-splitter -i myvideo.mp4
+
+# Output will be in:
+# /Users/kekko/Downloads/myvideo/myvideo_parte_01.mp4
+# /Users/kekko/Downloads/myvideo/myvideo_parte_02.mp4
+# etc.
 ```
 
 ------------------------------------------------------------------------
@@ -193,7 +266,7 @@ MIT License - see [LICENSE](LICENSE)
 
 ## 👤 Author
 
-**Kekkooo86** - Docker Hub:
+**kekkooo86** - Docker Hub:
 [@kekkooo86](https://hub.docker.com/r/kekkooo86) - GitHub:
 [@kekkooo86](https://github.com/kekkooo86)
 

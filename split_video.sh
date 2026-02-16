@@ -51,6 +51,7 @@ OVERLAP=5
 INPUT_FILE=""
 INTERACTIVE=false
 ADD_LABEL="on"
+CUSTOM_LABEL=""
 TITLE_TEXT=""
 MAX_PARALLEL=1
 TEST_FIRST=false
@@ -63,13 +64,14 @@ if [ $# -eq 0 ]; then
 fi
 
 # Parse arguments
-while getopts "i:d:s:o:l:T:p:S:E:h-:" opt; do
+while getopts "i:d:s:o:l:L:T:p:S:E:h-:" opt; do
   case $opt in
     i) INPUT_FILE="$OPTARG" ;;
     d) VIDEO_DIR="$OPTARG" ;;
     s) SEGMENT_DURATION="$OPTARG" ;;
     o) OVERLAP="$OPTARG" ;;
     l) ADD_LABEL="$OPTARG" ;;
+    L) CUSTOM_LABEL="$OPTARG" ;;
     T) TITLE_TEXT="$OPTARG" ;;
     p) MAX_PARALLEL="$OPTARG" ;;
     S) START_TIME="$OPTARG" ;;
@@ -82,13 +84,14 @@ while getopts "i:d:s:o:l:T:p:S:E:h-:" opt; do
       echo "Options:"
       echo "  -i  Video file name"
       echo "  -d  Directory containing the video (default: .)"
-      echo "  -s  Duration of each segment in seconds (default: 60)"
-      echo "  -o  Overlap between segments in seconds (default: 5)"
+      echo "  -s  Duration of each segment in seconds (default: 60, accepts float)"
+      echo "  -o  Overlap between segments in seconds (default: 5, accepts float)"
       echo "  -l  Add permanent 'Part X' label (on/off, default: on)"
+      echo "  -L  Custom label text (replaces 'Part X' with your text)"
       echo "  -T  Intro title (use \| for line break)"
       echo "  -p  Number of parallel processes (default: 1, max: 3)"
-      echo "  -S  Start time in seconds (default: 0)"
-      echo "  -E  End time in seconds (default: video duration)"
+      echo "  -S  Start time in seconds (default: 0, accepts float)"
+      echo "  -E  End time in seconds (default: video duration, accepts float)"
       echo "  --test-first  Test only the first video"
       echo "  -h  Show this help"
       echo ""
@@ -96,6 +99,7 @@ while getopts "i:d:s:o:l:T:p:S:E:h-:" opt; do
       echo "  $0 -i documentary.mp4 -s 60 -o 5 -T \"Documentary South 1992\""
       echo "  $0 -i video.mp4 -T \"Series PIPE Episode 1\" -p 2"
       echo "  $0 -i video.mp4 -S 30 -E 180  # Process only from 30s to 180s"
+      echo "  $0 -i video.mp4 -s 59.5 -o 2.5 -L \"Episodio 1\"  # Float times with custom label"
       exit 0
       ;;
     -)
@@ -220,9 +224,10 @@ echo -e "${GREEN}📁 Input directory:${NC} $VIDEO_DIR"
 echo -e "${GREEN}📂 Output folder:${NC} $FILENAME/"
 echo -e "${GREEN}⏱️  Segment duration:${NC} $SEGMENT_DURATION seconds"
 echo -e "${GREEN}🔄 Overlap:${NC} $OVERLAP seconds"
-[ $START_TIME -gt 0 ] && echo -e "${GREEN}▶️  Start time:${NC} $START_TIME seconds"
-[ $END_TIME -ne -1 ] && [ $END_TIME -lt 999999 ] && echo -e "${GREEN}⏹️  End time:${NC} $END_TIME seconds"
+float_gt $START_TIME 0 && echo -e "${GREEN}▶️  Start time:${NC} $START_TIME seconds"
+[ "$END_TIME" != "-1" ] && float_lt $END_TIME 999999 && echo -e "${GREEN}⏹️  End time:${NC} $END_TIME seconds"
 [ "$ADD_LABEL" = "on" ] && echo -e "${GREEN}🏷️  Permanent label:${NC} Enabled"
+[ -n "$CUSTOM_LABEL" ] && echo -e "${GREEN}🏷️  Custom label:${NC} $CUSTOM_LABEL"
 [ -n "$TITLE_TEXT" ] && echo -e "${GREEN}📝 Intro title:${NC} $TITLE_TEXT"
 [ "$TEST_FIRST" = true ] && echo -e "${YELLOW}🧪 TEST: First video only${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════${NC}"
@@ -255,21 +260,23 @@ if [ -z "$DURATION" ]; then
 fi
 
 # Set END_TIME to video duration if not specified
-[ $END_TIME -eq -1 ] && END_TIME=$DURATION
+if [ "$END_TIME" = "-1" ]; then
+  END_TIME=$DURATION
+fi
 
 # Validate START_TIME and END_TIME
-if [ $START_TIME -lt 0 ]; then
+if float_lt $START_TIME 0; then
   echo -e "${RED}Error: Start time cannot be negative${NC}"
   exit 1
 fi
 
-if [ $END_TIME -gt $DURATION ]; then
+if float_gt $END_TIME $DURATION; then
   echo -e "${YELLOW}⚠️  Warning: End time ($END_TIME s) exceeds video duration ($DURATION s)${NC}"
   echo -e "${YELLOW}   Using video duration instead${NC}"
   END_TIME=$DURATION
 fi
 
-if [ $START_TIME -ge $END_TIME ]; then
+if float_ge $START_TIME $END_TIME; then
   echo -e "${RED}Error: Start time ($START_TIME s) must be less than end time ($END_TIME s)${NC}"
   exit 1
 fi
@@ -279,7 +286,7 @@ CLEANUP_TEMP=false
 ORIGINAL_INPUT_FILE="$INPUT_FILE"
 ORIGINAL_VIDEO_PATH="$VIDEO_PATH"
 
-if [ $START_TIME -gt 0 ] || [ $END_TIME -lt $DURATION ]; then
+if float_gt $START_TIME 0 || float_lt $END_TIME $DURATION; then
   echo -e "${YELLOW}🔧 Pre-processing: trimming video from ${START_TIME}s to ${END_TIME}s...${NC}"
 
   TEMP_VIDEO="${FILENAME}_temp_trimmed.${EXTENSION}"
@@ -287,7 +294,7 @@ if [ $START_TIME -gt 0 ] || [ $END_TIME -lt $DURATION ]; then
 
   # Use stream copy for fast trimming (no re-encoding)
   START_TIME_FMT=$(format_time $START_TIME)
-  TRIM_DURATION=$((END_TIME - START_TIME))
+  TRIM_DURATION=$(float_sub $END_TIME $START_TIME)
 
   run_ffmpeg \
     -ss "$START_TIME_FMT" \
@@ -311,7 +318,7 @@ if [ $START_TIME -gt 0 ] || [ $END_TIME -lt $DURATION ]; then
   echo ""
 fi
 
-ESTIMATED_PARTS=$(((DURATION - OVERLAP) / (SEGMENT_DURATION - OVERLAP) + 1))
+ESTIMATED_PARTS=$(float_int $(float_add $(float_div $(float_sub $DURATION $OVERLAP) $(float_sub $SEGMENT_DURATION $OVERLAP)) 1))
 PADDING_LENGTH=${#ESTIMATED_PARTS}
 
 echo -e "${GREEN}✓ Total duration: $DURATION seconds${NC}"
@@ -330,14 +337,14 @@ echo -e "${BLUE}║         Starting segment creation         ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
 echo ""
 
-while [ $START -lt $DURATION ]; do
-  END=$((START + SEGMENT_DURATION))
-  [ $END -gt $DURATION ] && END=$DURATION
+while float_lt $START $DURATION; do
+  END=$(float_add $START $SEGMENT_DURATION)
+  float_gt $END $DURATION && END=$DURATION
 
-  NEXT_START=$((END - OVERLAP))
-  REMAINING=$((DURATION - NEXT_START))
+  NEXT_START=$(float_sub $END $OVERLAP)
+  REMAINING=$(float_sub $DURATION $NEXT_START)
 
-  if [ $REMAINING -gt 0 ] && [ $REMAINING -lt $((SEGMENT_DURATION / 2)) ]; then
+  if float_gt $REMAINING 0 && float_lt $REMAINING $(float_div $SEGMENT_DURATION 2); then
     if [ "$INTERACTIVE" = true ]; then
       handle_short_final_segment $REMAINING $SEGMENT_DURATION && SKIP_LAST=false || SKIP_LAST=true
       [ "$SKIP_LAST" = true ] && END=$DURATION
@@ -349,10 +356,10 @@ while [ $START -lt $DURATION ]; do
   [ "$SKIP_LAST" = true ] && break
   [ "$TEST_FIRST" = true ] && [ $PART -eq 1 ] && break
 
-  START=$((END - OVERLAP))
+  START=$(float_sub $END $OVERLAP)
   PART=$((PART + 1))
 
-  [ $((DURATION - START)) -lt $((OVERLAP + 1)) ] && break
+  float_lt $(float_sub $DURATION $START) $(float_add $OVERLAP 1) && break
 done
 
 # Process segments
@@ -369,14 +376,25 @@ for segment in "${VIDEO_SEGMENTS[@]}"; do
   part_padded=$(printf "%0${PADDING_LENGTH}d" $seg_part)
   output_file="$OUTPUT_DIR/${FILENAME}_parte_${part_padded}.${EXTENSION}"
 
+  # Determine correct path based on environment
+  if [ "$RUNNING_IN_DOCKER" = true ]; then
+    # Inside Docker: use direct path
+    output_file_target="$output_file"
+    input_file_target="/videos/$(basename "$INPUT_FILE")"
+  else
+    # Local: convert to Docker paths
+    output_file_target="/videos/$FILENAME/${FILENAME}_parte_${part_padded}.${EXTENSION}"
+    input_file_target="/videos/$(basename "$INPUT_FILE")"
+  fi
+
   # Build filter
   filter=""
   if [ "$ADD_LABEL" = "on" ] || [ -n "$TITLE_TEXT" ]; then
-    filter=$(build_ffmpeg_filter "$seg_part" "$ESTIMATED_PARTS" "$IS_LAST" "$VIDEO_ASPECT" "$TITLE_TEXT" "$OVERLAP" "$ADD_LABEL")
+    filter=$(build_ffmpeg_filter "$seg_part" "$ESTIMATED_PARTS" "$IS_LAST" "$VIDEO_ASPECT" "$TITLE_TEXT" "$OVERLAP" "$ADD_LABEL" "$CUSTOM_LABEL")
   fi
 
-  # Process using Docker
-  if process_video_segment "$seg_start" "$seg_end" "$seg_part" "$IS_LAST" "run_ffmpeg" "$filter" "$output_file" "/videos/$(basename "$INPUT_FILE")" "$PADDING_LENGTH" "$ESTIMATED_PARTS" "$ADD_LABEL" "$TITLE_TEXT"; then
+  # Process using appropriate ffmpeg command
+  if process_video_segment "$seg_start" "$seg_end" "$seg_part" "$IS_LAST" "run_ffmpeg" "$filter" "$output_file_target" "$input_file_target" "$PADDING_LENGTH" "$ESTIMATED_PARTS" "$ADD_LABEL" "$TITLE_TEXT"; then
     CREATED_FILES+=("$(basename "$output_file")")
   fi
 

@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-16
+
+### Added
+- New `-L` parameter to specify custom label text (replaces "Part X" with your custom text)
+- Float support for all time-related parameters (`-s`, `-o`, `-S`, `-E`)
+- Millisecond precision in time calculations and formatting
+- Helper functions for float arithmetic operations (`float_add`, `float_sub`, `float_mul`, `float_div`)
+- Helper functions for float comparisons (`float_lt`, `float_gt`, `float_le`, `float_ge`)
+- Display of custom label in output information
+
+### Changed
+- Updated `format_time()` function to support float values with millisecond precision (HH:MM:SS.mmm format)
+- Refactored all arithmetic operations to use `bc` for float calculations
+- Updated all time comparisons to support float values
+- Enhanced README.md with examples for custom labels and float timing
+- Updated help text to indicate float support for time parameters
+
+### Fixed
+- Docker output path handling: now correctly saves output next to the video file when running in Docker
+- FFmpeg exit code detection: now properly captures ffmpeg status instead of grep status
+- Path resolution for both local (using Docker) and Docker container environments
+
+### Technical
+- All segment calculations now support decimal values
+- Time formatting preserves up to 3 decimal places (milliseconds)
+- Backward compatible with integer values
+- Uses `awk` and `bc` for float operations
+- Uses `${PIPESTATUS[0]}` to capture actual ffmpeg exit status
+- Environment detection (`RUNNING_IN_DOCKER`) for correct path handling
+
 ## [1.2.0] - 2025-02-15
 
 ### Added

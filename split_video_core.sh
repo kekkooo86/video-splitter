@@ -10,6 +10,17 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Float comparison and calculation helpers
+float_lt() { awk "BEGIN {exit !($1 < $2)}"; }
+float_gt() { awk "BEGIN {exit !($1 > $2)}"; }
+float_ge() { awk "BEGIN {exit !($1 >= $2)}"; }
+float_le() { awk "BEGIN {exit !($1 <= $2)}"; }
+float_add() { echo "$1 + $2" | bc -l; }
+float_sub() { echo "$1 - $2" | bc -l; }
+float_mul() { echo "$1 * $2" | bc -l; }
+float_div() { echo "scale=3; $1 / $2" | bc -l; }
+float_int() { printf "%.0f" "$1"; }
+
 # Function to display progress bar
 show_progress() {
   local current=$1
@@ -33,7 +44,7 @@ detect_aspect_ratio() {
   echo -e "${YELLOW}⏳ Detecting video aspect ratio...${NC}" >&2
 
   # Get video dimensions using passed ffmpeg command
-  local dimensions=$($ffmpeg_cmd -i "$video_path" 2>&1 | grep "Stream.*Video" | sed -n 's/.*, \([0-9]*x[0-9]*\).*/\1/p' | head -1)
+  local dimensions=$(eval "$ffmpeg_cmd -i \"$video_path\" 2>&1" | grep "Stream.*Video" | sed -n 's/.*, \([0-9]*x[0-9]*\).*/\1/p' | head -1)
 
   if [ -z "$dimensions" ]; then
     echo "vertical"  # Default fallback
@@ -122,6 +133,7 @@ build_ffmpeg_filter() {
   local title_text=$5
   local overlap_duration=$6
   local add_label=$7
+  local custom_label=$8
 
   local filter=""
   local font_regular=$(find_font_path "regular")
@@ -136,11 +148,17 @@ build_ffmpeg_filter() {
 
   # Permanent label
   if [ "$add_label" = "on" ]; then
-    if [ "$is_last" = "true" ]; then
-      filter="drawtext=text='Final Part':fontfile=${font_regular}:fontsize=${label_size}:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=${label_padding}:x=w-tw-15:y=15"
+    local label_text
+    if [ -n "$custom_label" ]; then
+      # Use custom label
+      label_text="$custom_label"
+    elif [ "$is_last" = "true" ]; then
+      label_text="Final Part"
     else
-      filter="drawtext=text='Part ${part}':fontfile=${font_regular}:fontsize=${label_size}:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=${label_padding}:x=w-tw-15:y=15"
+      label_text="Part ${part}"
     fi
+
+    filter="drawtext=text='${label_text}':fontfile=${font_regular}:fontsize=${label_size}:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=${label_padding}:x=w-tw-15:y=15"
   fi
 
   # Centered intro title
@@ -163,13 +181,26 @@ build_ffmpeg_filter() {
   echo "$filter"
 }
 
-# Function to convert seconds to HH:MM:SS format
+# Function to convert seconds to HH:MM:SS.mmm format (supports float)
 format_time() {
   local total_seconds=$1
-  local hours=$((total_seconds / 3600))
-  local minutes=$(((total_seconds % 3600) / 60))
-  local seconds=$((total_seconds % 60))
-  printf "%02d:%02d:%02d" $hours $minutes $seconds
+
+  # Split integer and decimal parts
+  local int_part=$(echo "$total_seconds" | cut -d'.' -f1)
+  local dec_part=$(echo "$total_seconds" | cut -d'.' -f2)
+
+  # If no decimal part, set to 0
+  [ "$dec_part" = "$total_seconds" ] && dec_part="0"
+
+  # Pad decimal part to 3 digits (milliseconds)
+  dec_part=$(printf "%03d" "$dec_part" 2>/dev/null || echo "000")
+  dec_part=${dec_part:0:3}
+
+  local hours=$((int_part / 3600))
+  local minutes=$(((int_part % 3600) / 60))
+  local seconds=$((int_part % 60))
+
+  printf "%02d:%02d:%02d.%s" $hours $minutes $seconds $dec_part
 }
 
 # Function to get video duration
@@ -178,7 +209,7 @@ get_video_duration() {
   local video_path=$1
   local ffmpeg_cmd=$2
 
-  local duration=$($ffmpeg_cmd -i "$video_path" 2>&1 | \
+  local duration=$(eval "$ffmpeg_cmd -i \"$video_path\" 2>&1" | \
     grep "Duration" | \
     awk '{print $2}' | \
     tr -d , | \
@@ -241,45 +272,49 @@ process_video_segment() {
   local start_time=$(format_time $start)
   local end_time=$(format_time $end)
   local part_padded=$(printf "%0${padding_length}d" $part)
-  local duration=$((end - start))
+  local duration=$(float_sub $end $start)
 
   echo -e "${YELLOW}🎬 Part $part_padded/$estimated_parts${NC}: $start_time → $end_time"
 
   # Determine if using labels/titles
+  local ffmpeg_exit_code=0
   if [ "$add_label" = "on" ] || [ -n "$title_text" ]; then
     if [ -n "$filter" ]; then
       echo -e "${BLUE}   ⚙️  Encoding with labels...${NC}"
-      $ffmpeg_cmd \
-        -ss "$start_time" \
-        -i "$input_file" \
-        -t "$duration" \
-        -vf "$filter" \
+      eval "$ffmpeg_cmd \
+        -ss \"$start_time\" \
+        -i \"$input_file\" \
+        -t \"$duration\" \
+        -vf \"$filter\" \
         -c:v libx264 -crf 23 -preset medium \
         -c:a aac -b:a 128k \
         -pix_fmt yuv420p \
-        "$output_file" \
-        -loglevel error -stats -y 2>&1 | grep -Ev "(frame=|Fontconfig)" || true
+        \"$output_file\" \
+        -loglevel error -stats -y 2>&1" | grep -Ev "(frame=|Fontconfig)" || true
+      ffmpeg_exit_code=${PIPESTATUS[0]}
     else
-      $ffmpeg_cmd \
-        -ss "$start_time" \
-        -i "$input_file" \
-        -t "$duration" \
+      eval "$ffmpeg_cmd \
+        -ss \"$start_time\" \
+        -i \"$input_file\" \
+        -t \"$duration\" \
         -c copy \
-        "$output_file" \
-        -loglevel error -stats -y 2>&1 | grep -Ev "(frame=|Fontconfig)" || true
+        \"$output_file\" \
+        -loglevel error -stats -y 2>&1" | grep -Ev "(frame=|Fontconfig)" || true
+      ffmpeg_exit_code=${PIPESTATUS[0]}
     fi
   else
     # Fast copy without re-encoding
-    $ffmpeg_cmd \
-      -ss "$start_time" \
-      -i "$input_file" \
-      -t "$duration" \
+    eval "$ffmpeg_cmd \
+      -ss \"$start_time\" \
+      -i \"$input_file\" \
+      -t \"$duration\" \
       -c copy \
-      "$output_file" \
-      -loglevel error -stats -y 2>&1 | grep -Ev "(frame=|Fontconfig)" || true
+      \"$output_file\" \
+      -loglevel error -stats -y 2>&1" | grep -Ev "(frame=|Fontconfig)" || true
+    ffmpeg_exit_code=${PIPESTATUS[0]}
   fi
 
-  if [ $? -eq 0 ]; then
+  if [ $ffmpeg_exit_code -eq 0 ]; then
     echo -e "${GREEN}   ✓ Created: $(basename "$output_file")${NC}"
     return 0
   else
