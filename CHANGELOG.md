@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-16
+
+### Added
+- New crop parameters to remove unwanted borders from videos:
+  - `--crop-top N` - Crop N pixels from top
+  - `--crop-bottom N` - Crop N pixels from bottom
+  - `--crop-left N` - Crop N pixels from left
+  - `--crop-right N` - Crop N pixels from right
+- `build_crop_filter()` function in core to handle crop filter generation
+- Crop filters are applied before text overlays for optimal quality
+- Examples in documentation for letterbox and pillarbox removal
+
+### Changed
+- Updated `build_ffmpeg_filter()` to accept crop parameters (4 new parameters)
+- Enhanced README.md with crop usage examples
+- Crop filter concatenation logic to preserve existing filters
+
+### Technical
+- FFmpeg crop filter syntax: `crop=in_w-left-right:in_h-top-bottom:left:top`
+- Crop is the first filter applied in the chain, followed by drawtext filters
+- All crop parameters default to 0 (no cropping)
+
 ## [1.3.0] - 2026-02-16
 
 ### Added
@@ -87,6 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive and CLI modes
 - Docker support
 
+[1.4.0]: https://github.com/kekkooo86/video-splitter/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/kekkooo86/video-splitter/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/kekkooo86/video-splitter/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/kekkooo86/video-splitter/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kekkooo86/video-splitter/releases/tag/v1.0.0

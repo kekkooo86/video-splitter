@@ -63,6 +63,10 @@ Options:
   -l on/off     "Part X" label (default: on)
   -L "TEXT"     Custom label text (replaces "Part X")
   -p 1-3        Parallelism (default: 1)
+  --crop-top N     Crop N pixels from top
+  --crop-bottom N  Crop N pixels from bottom
+  --crop-left N    Crop N pixels from left
+  --crop-right N   Crop N pixels from right
   --test-first  Test only the first segment
 ```
 
@@ -118,6 +122,22 @@ Options:
 
 ``` bash
 ./split_video.sh -i video.mp4 -T "Test" --test-first
+```
+
+### Crop video (remove borders)
+
+``` bash
+# Remove black bars from top and bottom (letterbox)
+./split_video.sh -i video.mp4 --crop-top 100 --crop-bottom 100
+
+# Remove black bars from sides (pillarbox)
+./split_video.sh -i video.mp4 --crop-left 200 --crop-right 200
+
+# Crop from all sides
+./split_video.sh -i video.mp4 --crop-top 50 --crop-bottom 50 --crop-left 100 --crop-right 100
+
+# Crop with title and custom label
+./split_video.sh -i video.mp4 --crop-top 140 --crop-bottom 140 -T "Documentary" -L "Episode 1"
 ```
 
 ------------------------------------------------------------------------

@@ -57,6 +57,10 @@ MAX_PARALLEL=1
 TEST_FIRST=false
 START_TIME=0
 END_TIME=-1  # -1 significa "fino alla fine"
+CROP_TOP=0
+CROP_BOTTOM=0
+CROP_LEFT=0
+CROP_RIGHT=0
 
 # If no arguments, use interactive mode
 if [ $# -eq 0 ]; then
@@ -92,7 +96,11 @@ while getopts "i:d:s:o:l:L:T:p:S:E:h-:" opt; do
       echo "  -p  Number of parallel processes (default: 1, max: 3)"
       echo "  -S  Start time in seconds (default: 0, accepts float)"
       echo "  -E  End time in seconds (default: video duration, accepts float)"
-      echo "  --test-first  Test only the first video"
+      echo "  --crop-top N     Crop N pixels from top"
+      echo "  --crop-bottom N  Crop N pixels from bottom"
+      echo "  --crop-left N    Crop N pixels from left"
+      echo "  --crop-right N   Crop N pixels from right"
+      echo "  --test-first     Test only the first video"
       echo "  -h  Show this help"
       echo ""
       echo "Examples:"
@@ -100,11 +108,16 @@ while getopts "i:d:s:o:l:L:T:p:S:E:h-:" opt; do
       echo "  $0 -i video.mp4 -T \"Series PIPE Episode 1\" -p 2"
       echo "  $0 -i video.mp4 -S 30 -E 180  # Process only from 30s to 180s"
       echo "  $0 -i video.mp4 -s 59.5 -o 2.5 -L \"Episodio 1\"  # Float times with custom label"
+      echo "  $0 -i video.mp4 --crop-top 100 --crop-bottom 100  # Crop 100px from top and bottom"
       exit 0
       ;;
     -)
       case "${OPTARG}" in
         test-first) TEST_FIRST=true ;;
+        crop-top) CROP_TOP="${!OPTIND}"; OPTIND=$((OPTIND + 1)) ;;
+        crop-bottom) CROP_BOTTOM="${!OPTIND}"; OPTIND=$((OPTIND + 1)) ;;
+        crop-left) CROP_LEFT="${!OPTIND}"; OPTIND=$((OPTIND + 1)) ;;
+        crop-right) CROP_RIGHT="${!OPTIND}"; OPTIND=$((OPTIND + 1)) ;;
         *) echo "Invalid option: --${OPTARG}" >&2; exit 1 ;;
       esac
       ;;
@@ -226,6 +239,10 @@ echo -e "${GREEN}⏱️  Segment duration:${NC} $SEGMENT_DURATION seconds"
 echo -e "${GREEN}🔄 Overlap:${NC} $OVERLAP seconds"
 float_gt $START_TIME 0 && echo -e "${GREEN}▶️  Start time:${NC} $START_TIME seconds"
 [ "$END_TIME" != "-1" ] && float_lt $END_TIME 999999 && echo -e "${GREEN}⏹️  End time:${NC} $END_TIME seconds"
+[ "$CROP_TOP" -gt 0 ] && echo -e "${GREEN}✂️  Crop top:${NC} $CROP_TOP pixels"
+[ "$CROP_BOTTOM" -gt 0 ] && echo -e "${GREEN}✂️  Crop bottom:${NC} $CROP_BOTTOM pixels"
+[ "$CROP_LEFT" -gt 0 ] && echo -e "${GREEN}✂️  Crop left:${NC} $CROP_LEFT pixels"
+[ "$CROP_RIGHT" -gt 0 ] && echo -e "${GREEN}✂️  Crop right:${NC} $CROP_RIGHT pixels"
 [ "$ADD_LABEL" = "on" ] && echo -e "${GREEN}🏷️  Permanent label:${NC} Enabled"
 [ -n "$CUSTOM_LABEL" ] && echo -e "${GREEN}🏷️  Custom label:${NC} $CUSTOM_LABEL"
 [ -n "$TITLE_TEXT" ] && echo -e "${GREEN}📝 Intro title:${NC} $TITLE_TEXT"
@@ -389,8 +406,8 @@ for segment in "${VIDEO_SEGMENTS[@]}"; do
 
   # Build filter
   filter=""
-  if [ "$ADD_LABEL" = "on" ] || [ -n "$TITLE_TEXT" ]; then
-    filter=$(build_ffmpeg_filter "$seg_part" "$ESTIMATED_PARTS" "$IS_LAST" "$VIDEO_ASPECT" "$TITLE_TEXT" "$OVERLAP" "$ADD_LABEL" "$CUSTOM_LABEL")
+  if [ "$ADD_LABEL" = "on" ] || [ -n "$TITLE_TEXT" ] || [ "$CROP_TOP" -gt 0 ] || [ "$CROP_BOTTOM" -gt 0 ] || [ "$CROP_LEFT" -gt 0 ] || [ "$CROP_RIGHT" -gt 0 ]; then
+    filter=$(build_ffmpeg_filter "$seg_part" "$ESTIMATED_PARTS" "$IS_LAST" "$VIDEO_ASPECT" "$TITLE_TEXT" "$OVERLAP" "$ADD_LABEL" "$CUSTOM_LABEL" "$CROP_TOP" "$CROP_BOTTOM" "$CROP_LEFT" "$CROP_RIGHT")
   fi
 
   # Process using appropriate ffmpeg command

@@ -124,6 +124,29 @@ process_title_text() {
   echo "$text" | sed 's/|/\n/g'
 }
 
+# Function to build crop filter
+# Parameters: crop_top, crop_bottom, crop_left, crop_right
+build_crop_filter() {
+  local crop_top=$1
+  local crop_bottom=$2
+  local crop_left=$3
+  local crop_right=$4
+
+  # Check if any crop parameter is set
+  if [ "$crop_top" -eq 0 ] && [ "$crop_bottom" -eq 0 ] && [ "$crop_left" -eq 0 ] && [ "$crop_right" -eq 0 ]; then
+    echo ""
+    return
+  fi
+
+  # Build crop filter: crop=out_w:out_h:x:y
+  # out_w = in_w - crop_left - crop_right
+  # out_h = in_h - crop_top - crop_bottom
+  # x = crop_left (starting x position)
+  # y = crop_top (starting y position)
+
+  echo "crop=in_w-${crop_left}-${crop_right}:in_h-${crop_top}-${crop_bottom}:${crop_left}:${crop_top}"
+}
+
 # Function to build ffmpeg filter
 build_ffmpeg_filter() {
   local part=$1
@@ -134,6 +157,10 @@ build_ffmpeg_filter() {
   local overlap_duration=$6
   local add_label=$7
   local custom_label=$8
+  local crop_top=${9:-0}
+  local crop_bottom=${10:-0}
+  local crop_left=${11:-0}
+  local crop_right=${12:-0}
 
   local filter=""
   local font_regular=$(find_font_path "regular")
@@ -141,6 +168,12 @@ build_ffmpeg_filter() {
   local sizes=$(get_font_sizes "$aspect")
   local label_size=$(echo $sizes | cut -d':' -f1)
   local title_size=$(echo $sizes | cut -d':' -f2)
+
+  # Add crop filter first if needed
+  local crop_filter=$(build_crop_filter "$crop_top" "$crop_bottom" "$crop_left" "$crop_right")
+  if [ -n "$crop_filter" ]; then
+    filter="$crop_filter"
+  fi
 
   # Calculate padding for box
   local label_padding=$((label_size / 4))
@@ -158,7 +191,13 @@ build_ffmpeg_filter() {
       label_text="Part ${part}"
     fi
 
-    filter="drawtext=text='${label_text}':fontfile=${font_regular}:fontsize=${label_size}:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=${label_padding}:x=w-tw-15:y=15"
+    local label_filter="drawtext=text='${label_text}':fontfile=${font_regular}:fontsize=${label_size}:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=${label_padding}:x=w-tw-15:y=15"
+
+    if [ -n "$filter" ]; then
+      filter="${filter},${label_filter}"
+    else
+      filter="$label_filter"
+    fi
   fi
 
   # Centered intro title
