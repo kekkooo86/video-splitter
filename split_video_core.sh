@@ -315,34 +315,28 @@ process_video_segment() {
 
   echo -e "${YELLOW}🎬 Part $part_padded/$estimated_parts${NC}: $start_time → $end_time"
 
-  # Determine if using labels/titles
+  # Determine if re-encoding is needed (labels, title, or any video filter like crop)
   local ffmpeg_exit_code=0
-  if [ "$add_label" = "on" ] || [ -n "$title_text" ]; then
-    if [ -n "$filter" ]; then
-      echo -e "${BLUE}   ⚙️  Encoding with labels...${NC}"
-      eval "$ffmpeg_cmd \
-        -ss \"$start_time\" \
-        -i \"$input_file\" \
-        -t \"$duration\" \
-        -vf \"$filter\" \
-        -c:v libx264 -crf 23 -preset medium \
-        -c:a aac -b:a 128k \
-        -pix_fmt yuv420p \
-        \"$output_file\" \
-        -loglevel error -stats -y 2>&1" | grep -Ev "(frame=|Fontconfig)" || true
-      ffmpeg_exit_code=${PIPESTATUS[0]}
-    else
-      eval "$ffmpeg_cmd \
-        -ss \"$start_time\" \
-        -i \"$input_file\" \
-        -t \"$duration\" \
-        -c copy \
-        \"$output_file\" \
-        -loglevel error -stats -y 2>&1" | grep -Ev "(frame=|Fontconfig)" || true
-      ffmpeg_exit_code=${PIPESTATUS[0]}
+  if [ -n "$filter" ]; then
+    # A filter is present (labels, title, crop, or any combination) → re-encode
+    local encoding_label="labels"
+    if [ "$add_label" != "on" ] && [ -z "$title_text" ]; then
+      encoding_label="crop"
     fi
+    echo -e "${BLUE}   ⚙️  Encoding with ${encoding_label}...${NC}"
+    eval "$ffmpeg_cmd \
+      -ss \"$start_time\" \
+      -i \"$input_file\" \
+      -t \"$duration\" \
+      -vf \"$filter\" \
+      -c:v libx264 -crf 23 -preset medium \
+      -c:a aac -b:a 128k \
+      -pix_fmt yuv420p \
+      \"$output_file\" \
+      -loglevel error -stats -y 2>&1" | grep -Ev "(frame=|Fontconfig)" || true
+    ffmpeg_exit_code=${PIPESTATUS[0]}
   else
-    # Fast copy without re-encoding
+    # No filter: fast copy without re-encoding
     eval "$ffmpeg_cmd \
       -ss \"$start_time\" \
       -i \"$input_file\" \

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-02-28
+
+### Fixed
+- Crop filter not applied when `-T` (title) parameter is absent: `process_video_segment()` was falling back to `-c copy` (stream copy) even when a crop filter was built, because the re-encoding branch was gated only on `add_label`/`title_text` checks. Now the decision is based on whether a filter string is actually present, ensuring crop is always applied regardless of other options.
+
 ## [1.4.0] - 2026-02-16
 
 ### Added
@@ -109,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive and CLI modes
 - Docker support
 
+[1.4.1]: https://github.com/kekkooo86/video-splitter/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/kekkooo86/video-splitter/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/kekkooo86/video-splitter/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/kekkooo86/video-splitter/compare/v1.1.0...v1.2.0
