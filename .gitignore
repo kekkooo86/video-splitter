@@ -52,4 +52,3 @@ Thumbs.db
 *~
 README_OLD.md
 .gitignore_template
-scripts/publish-docker.sh

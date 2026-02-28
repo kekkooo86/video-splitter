@@ -43,6 +43,7 @@ chmod +x split_video.sh
 -   🎨 Centered intro titles with fade effect
 -   📱 Auto-detect aspect ratio (9:16, 16:9, 1:1)
 -   ⏱️ Process specific time ranges (start/end)
+-   🖼️ Crop video from any side (remove black bars)
 -   ⚡ Parallel processing (up to 3 videos)
 -   🧪 Test mode
 
@@ -133,6 +134,9 @@ Options:
 # Remove black bars from sides (pillarbox)
 ./split_video.sh -i video.mp4 --crop-left 200 --crop-right 200
 
+# Crop only, no labels, no title (fast re-encode)
+./split_video.sh -i video.mp4 --crop-left 250 --crop-right 150 -l off
+
 # Crop from all sides
 ./split_video.sh -i video.mp4 --crop-top 50 --crop-bottom 50 --crop-left 100 --crop-right 100
 
@@ -153,7 +157,7 @@ docker pull kekkooo86/video-splitter:latest
 ### Local build
 
 ``` bash
-docker build -t video-splitter:1.3.0 .
+docker build -t video-splitter:1.4.1 .
 ```
 
 ### Use with your videos
@@ -262,6 +266,15 @@ Each segment overlaps with the previous one. For example:
 
 The title appears in the overlap section (first 5s) of each segment, providing continuity.
 
+### Can I use crop without a title?
+
+Yes! Since **v1.4.1** the crop parameters work correctly even without `-T` or any label. Previously the crop was silently ignored when neither title nor label was active (the video was copied without re-encoding). Now any crop option triggers re-encoding automatically:
+
+```bash
+# This now correctly crops the video (no title needed)
+./split_video.sh -i video.mp4 --crop-left 250 --crop-right 150 -l off
+```
+
 ### Can I test only the first segment?
 
 Yes! Use the `--test-first` flag:
@@ -296,16 +309,14 @@ MIT License - see [LICENSE](LICENSE)
 
 ```
 video-splitter/
-├── split_video.sh           # Main script (local use)
-├── split_video_docker.sh    # Docker wrapper
+├── split_video.sh           # Main script (local + Docker)
 ├── split_video_core.sh      # Core functions (shared)
 ├── Dockerfile               # Docker image definition
 ├── docker-compose.yml       # Docker Compose config
 ├── LICENSE                  # MIT License
-├── README.md               # This file
-├── CONTRIBUTING.md         # Contribution guidelines
-└── scripts/                # Utility scripts
-    └── publish-docker.sh   # Publish to Docker Hub
+├── README.md                # This file
+├── CHANGELOG.md             # Version history
+├── CONTRIBUTING.md          # Contribution guidelines
 ```
 
 ------------------------------------------------------------------------

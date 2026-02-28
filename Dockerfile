@@ -5,7 +5,7 @@ FROM jrottenberg/ffmpeg:4.4-alpine
 
 # Metadata labels
 LABEL maintainer="xtxmotard@gmail.com"
-LABEL version="1.4.0"
+LABEL version="1.4.1"
 LABEL description="Video Splitter - Professional video segmentation with FFmpeg"
 LABEL org.opencontainers.image.source="https://github.com/kekkooo86/video-splitter"
 LABEL org.opencontainers.image.documentation="https://hub.docker.com/r/kekkooo86/video-splitter"
