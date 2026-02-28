@@ -6,18 +6,21 @@ on:
   workflow_dispatch:
 jobs:
   publish:
-    name: Build & Push to Docker Hub
+    name: Build and Push to Docker Hub
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Extract version tags
         id: version
         run: |
@@ -26,21 +29,36 @@ jobs:
           MINOR=$(echo $RAW | cut -d. -f2)
           echo "version=$RAW" >> $GITHUB_OUTPUT
           echo "tags=kekkooo86/video-splitter:${RAW},kekkooo86/video-splitter:${MAJOR}.${MINOR},kekkooo86/video-splitter:${MAJOR},kekkooo86/video-splitter:latest" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.version.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+
       - name: Update Docker Hub Description
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: kekkooo86/video-splitter
-          short-description: "Split videos into segments with labels and intro titles"
+          short-description: Split videos into segments with labels and intro titles
           readme-filepath: ./README.md
+
+      - name: Job summary
+        run: |
+          echo "## Release ${{ steps.version.outputs.version }} published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-----|" >> $GITHUB_STEP_SUMMARY
+          IFS=',' read -ra TAGS <<< "${{ steps.version.outputs.tags }}"
+          for TAG in "${TAGS[@]}"; do
+            echo "| $TAG | https://hub.docker.com/r/kekkooo86/video-splitter |" >> $GITHUB_STEP_SUMMARY
+          done

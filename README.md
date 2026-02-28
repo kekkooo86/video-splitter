@@ -157,7 +157,7 @@ docker pull kekkooo86/video-splitter:latest
 ### Local build
 
 ``` bash
-docker build -t video-splitter:1.4.1 .
+docker build -t video-splitter:1.4.2 .
 ```
 
 ### Use with your videos
